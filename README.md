@@ -1,3 +1,7 @@
+
+
+---
+
 ### **BELABOX Installation Tutorial on Android via Linux Deploy**  
 **Prerequisites:**  
 - Rooted Android device.  
@@ -7,13 +11,13 @@
 ---
 
 ### **Step 1: Upgrade Ubuntu to 20.04 LTS**  
-The default Linux Deploy installation may use an outdated Ubuntu version. Fix this:  
+**Why?** Linux Deploy may default to an unsupported Ubuntu version. `libsrt-dev` (required for BELABOX) is only available in Ubuntu 20.04 ("Focal").  
 
 1. Open the terminal in Linux Deploy and run:  
    ```bash
    sudo nano /etc/apt/sources.list
    ```  
-2. Replace all instances of `jammy` with **`focal`** (to switch to Ubuntu 20.04).  
+2. Replace all instances of `jammy` (Ubuntu 22.04) with **`focal`** (Ubuntu 20.04).  
 3. Save changes (`Ctrl+O` → Enter) and exit (`Ctrl+X`).  
 4. Update the system:  
    ```bash
@@ -51,15 +55,15 @@ To access SFTP as root:
    cd belacoder
    make
    ```  
-   - **If compilation fails:**  
+   - **If compilation fails (missing SRT libraries):**  
      ```bash
      cd ~
-     git clone https://github.com/BELABOX/srt.git
+     git clone https://github.com/Haivision/srt.git  # Use the official SRT repo
      cd srt
      ./configure --prefix=/usr/local
      make -j4
      sudo make install
-     sudo ldconfig
+     sudo ldconfig  # Refresh library paths
      ```  
      Return to belacoder and retry:  
      ```bash
@@ -81,16 +85,16 @@ To access SFTP as root:
    cd belaUI
    git checkout ws_nodejs
    ```  
-3. Create a `package.json` file with the following content:  
-   ```json
-   {
+3. Create a `package.json` file with:  
+   ```bash
+   echo '{
      "dependencies": {
        "serve-static": "^1.14.1",
        "finalhandler": "^1.1.2",
        "bcrypt": "^5.1.1",
        "ws": "^7.4.4"
      }
-   }
+   }' > package.json
    ```  
 4. Install Node.js modules:  
    ```bash
@@ -99,13 +103,7 @@ To access SFTP as root:
 
 ---
 
-
-
-
-
 ### **Step 6: Configure BELABOX Settings**  
-Create/modify the `setup.json` file for BELABOX hardware configuration:  
-
 1. Navigate to the `belaUI` directory:  
    ```bash
    cd ~/belaUI
@@ -114,46 +112,65 @@ Create/modify the `setup.json` file for BELABOX hardware configuration:
    ```bash
    sudo nano setup.json
    ```  
-3. Paste this configuration (adjust paths if needed):  
+3. Paste this configuration (adjust paths/hardware as needed):  
    ```json
    {
-     "hw": "rk3588",
+     "hw": "rk3588",  # Change to your device's chipset (e.g., "raspberrypi", "odroid")
      "belacoder_path": "/root/belacoder/",
-     "srtla_path": "/root/srtla/",
+     "srtla_path": "/root/srtla/",  # Optional: Only if using SRTLA
      "bitrate_file": "/tmp/belacoder_br",
      "ips_file": "/tmp/srtla_ips"
    }
    ```  
-   - **Key parameters:**  
-     - `hw`: Your device chipset (e.g., `rk3588` for Rockchip).  
-     - `belacoder_path`: Path to your compiled belacoder.  
-     - `srtla_path`: Path to SRTLA (if used).  
+   - **Note:** Replace `rk3588` with your actual hardware (check device specs).  
 4. Save the file (`Ctrl+O` → Enter) and exit (`Ctrl+X`).  
 
 ---
 
-### **Updated Summary**  
-- **Configuration:** Customized via `setup.json` for hardware and paths.  
-- **Paths:** Verify locations match your installation (e.g., `/root/belacoder/`).  
-- **Hardware:** Set `hw` to match your device (critical for compatibility).  
-
-
 ### **Step 7: Launch belaUI**  
 1. Start the interface:  
    ```bash
-   sudo nodejs belaUI.js
+   sudo node belaUI.js  # Use "node" instead of "nodejs" if needed
    ```  
 2. Access BELABOX via a web browser at: `http://<your_phone_IP>:8080`.  
 
 ---
 
-Now BELABOX will use your custom configuration! 🚀
 ### **Summary**  
-- System: Ubuntu 20.04 LTS (verify with `lsb_release -a`).  
-- BELABOX: Runs via belacoder (use `./belacoder` in `~/belacoder`) and belaUI.  
-- SFTP: Access as root using the password you set.  
+- **System:** Ubuntu 20.04 LTS (verify with `lsb_release -a`).  
+- **BELABOX Components:**  
+  - Encoder: `belacoder` (run via `./belacoder` in `~/belacoder`).  
+  - Web UI: `belaUI` (launched with `sudo node belaUI.js`).  
+- **SFTP Access:** Use root credentials set earlier.  
 
 **Troubleshooting Tips:**  
-- Ensure all dependencies are installed.  
-- Confirm Ubuntu version is **20.04 (Focal)**.  
-- If compilation errors occur, run `sudo ldconfig` and retry the steps.
+1. **Dependency Issues:**  
+   ```bash
+   sudo apt --fix-broken install  # Resolve broken packages
+   ```  
+2. **Node.js Errors:**  
+   - Confirm Node.js version: `node -v` (recommended: v12+).  
+   - Reinstall modules: `rm -rf node_modules && npm install`.  
+3. **Hardware Mismatch:**  
+   - Edit `setup.json` to match your device’s chipset.  
+4. **Permissions:** Avoid running as root if possible. Create a dedicated user:  
+   ```bash
+   sudo adduser belabox
+   sudo usermod -aG sudo belabox
+   ```  
+
+---
+
+Now BELABOX is ready with your custom configuration! 🚀  
+**Need Help?**  
+- Check BELABOX documentation: [BELABOX GitHub](https://github.com/BELABOX).  
+- Visit forums for hardware-specific guidance (e.g., Rockchip, Raspberry Pi).  
+
+---
+
+**Key Improvements:**  
+- Fixed SRT repository URL (now points to official Haivision repo).  
+- Added hardware compatibility notes for `setup.json`.  
+- Clarified Node.js command (`node` vs. `nodejs`).  
+- Added troubleshooting tips for dependency/node issues.  
+- Emphasized security by suggesting a non-root user.
