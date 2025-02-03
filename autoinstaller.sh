@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Auto-install script for BELABOX (z SRTLA i net-tools)
-# Run as root: sudo ./belabox_installer.sh
+# Auto-install script for BELABOX (pełna wersja)
+# Autor: BELABOX Community | Ostatnia aktualizacja: 2023-11-05
+# Uruchom jako root: sudo ./belabox_installer.sh
 
 set -e
 
@@ -24,48 +25,60 @@ error() { echo -e "${RED}[BŁĄD] $1${NC}"; exit 1; }
 step() { echo -e "${GREEN}[KROK] $1${NC}"; }
 info() { echo -e "${YELLOW}[INFO] $1${NC}"; }
 
-# Sprawdź root
-[ "$EUID" -ne 0 ] && error "Uruchom skrypt jako root (sudo $0)"
+# =====================================================================
+# Sprawdzenie uprawnień
+# =====================================================================
+if [ "$EUID" -ne 0 ]; then
+    error "Uruchom skrypt jako root: sudo $0"
+fi
 
 # =====================================================================
-# Krok 1: Aktualizacja Ubuntu
+# Krok 1: Aktualizacja systemu do Ubuntu 20.04
 # =====================================================================
-step "Aktualizacja Ubuntu do 20.04"
+step "1/9 ▸ Aktualizacja do Ubuntu 20.04 Focal"
 
-CURRENT_CODENAME=$(lsb_release -cs)
-sed -i "s/${CURRENT_CODENAME}/${UBUNTU_TARGET}/g" /etc/apt/sources.list
-
-DEBIAN_FRONTEND=noninteractive apt update -y
-DEBIAN_FRONTEND=noninteractive apt full-upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
-apt autoremove -y
+current_codename=$(lsb_release -cs)
+if [ "$current_codename" != "$UBUNTU_TARGET" ]; then
+    sed -i "s/${current_codename}/${UBUNTU_TARGET}/g" /etc/apt/sources.list
+    DEBIAN_FRONTEND=noninteractive apt update -y
+    DEBIAN_FRONTEND=noninteractive apt full-upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+    apt autoremove -y
+else
+    info "System już używa Ubuntu 20.04, pomijam aktualizację"
+fi
 
 # =====================================================================
-# Krok 2: Konfiguracja SFTP
+# Krok 2: Konfiguracja dostępu SFTP
 # =====================================================================
-step "Konfiguracja SFTP"
+step "2/9 ▸ Konfiguracja SFTP"
 read -p "Ustawić hasło root? [y/N] " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     until passwd root; do
-        echo -e "${RED}Błąd, spróbuj ponownie${NC}"
+        echo -e "${RED}Błąd przy zmianie hasła, spróbuj ponownie${NC}"
     done
 fi
 
 # =====================================================================
-# Krok 3: Zależności systemowe
+# Krok 3: Instalacja zależności systemowych
 # =====================================================================
-step "Instalacja zależności"
+step "3/9 ▸ Instalacja pakietów systemowych"
 apt install -y \
     net-tools build-essential git nano tcl libssl-dev \
     libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-    usb-modeswitch curl
+    usb-modeswitch curl cmake pkg-config yasm \
+    zlib1g-dev libssl-dev libnuma-dev
 
 # =====================================================================
 # Krok 4: Kompilacja SRT
 # =====================================================================
-step "Kompilacja SRT"
+step "4/9 ▸ Kompilacja SRT"
 cd /root
-git clone "${SRT_REPO}"
+if [ -d "srt" ]; then
+    info "Wykryto istniejącą instalację SRT, usuwam..."
+    rm -rf srt
+fi
+git clone "$SRT_REPO"
 cd srt
 ./configure --prefix=/usr/local
 make -j$(nproc)
@@ -73,34 +86,47 @@ make install
 ldconfig
 
 # =====================================================================
-# Krok 4.5: Kompilacja SRTLA
+# Krok 5: Kompilacja SRTLA
 # =====================================================================
-step "Kompilacja SRTLA"
+step "5/9 ▸ Kompilacja SRTLA"
 cd /root
+if [ -d "srtla" ]; then
+    info "Wykryto istniejącą instalację SRTLA, usuwam..."
+    rm -rf srtla
+fi
 git clone https://github.com/BELABOX/srtla.git
 cd srtla
 make
 chmod +x srtla
 
 # =====================================================================
-# Krok 5: Kompilacja belacoder
+# Krok 6: Instalacja belacoder
 # =====================================================================
-step "Kompilacja belacoder"
+step "6/9 ▸ Instalacja belacoder"
 cd /root
+if [ -d "belacoder" ]; then
+    info "Wykryto istniejącą instalację belacoder, usuwam..."
+    rm -rf belacoder
+fi
 git clone https://github.com/BELABOX/belacoder.git
 cd belacoder
 make
 chmod +x belacoder
 
 # =====================================================================
-# Krok 6: Instalacja belaUI
+# Krok 7: Instalacja belaUI
 # =====================================================================
-step "Instalacja belaUI"
+step "7/9 ▸ Instalacja belaUI"
 cd /root
+if [ -d "belaUI" ]; then
+    info "Wykryto istniejącą instalację belaUI, usuwam..."
+    rm -rf belaUI
+fi
 git clone https://github.com/BELABOX/belaUI.git
 cd belaUI
 git checkout ws_nodejs
 
+# Konfiguracja package.json
 cat > package.json << 'EOF'
 {
   "dependencies": {
@@ -113,31 +139,35 @@ cat > package.json << 'EOF'
 EOF
 
 # =====================================================================
-# Krok 6.5: Instalacja Node.js 21
+# Krok 8: Instalacja Node.js 21
 # =====================================================================
-step "Instalacja Node.js 21 via NVM"
+step "8/9 ▸ Konfiguracja Node.js"
 
 # Instalacja NVM
+export NVM_DIR="/root/.nvm"
 curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash
 
 # Ładowanie NVM
-export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-# Node.js 21
-nvm install ${NODE_VERSION}
-nvm use ${NODE_VERSION}
+# Instalacja Node.js
+nvm install "$NODE_VERSION"
+nvm use "$NODE_VERSION"
 
-# Aktualizacja systemowego Node
-ln -sf "$NVM_DIR/versions/node/v${NODE_VERSION}.*/bin/node" /usr/local/bin/node
-ln -sf "$NVM_DIR/versions/node/v${NODE_VERSION}.*/bin/npm" /usr/local/bin/npm
+# Aktualizacja systemowych linków
+ln -sf "$NVM_DIR/versions/node/v${NODE_VERSION}."*/bin/node /usr/local/bin/node
+ln -sf "$NVM_DIR/versions/node/v${NODE_VERSION}."*/bin/npm /usr/local/bin/npm
+
+# Instalacja zależności
 npm install
 
 # =====================================================================
-# Krok 7: Konfiguracja setup.json
+# Krok 9: Konfiguracja końcowa
 # =====================================================================
-step "Tworzenie setup.json"
+step "9/9 ▸ Finalizacja instalacji"
+
+# Tworzenie pliku konfiguracyjnego
 cat > setup.json << EOF
 {
   "hw": "${SETUP_JSON_HW}",
@@ -148,18 +178,36 @@ cat > setup.json << EOF
 }
 EOF
 
-# =====================================================================
-# Końcowa konfiguracja
-# =====================================================================
-step "Instalacja zakończona!"
+# Nadawanie praw
+chmod 755 /root /root/*
 
+# =====================================================================
+# Komunikat końcowy
+# =====================================================================
+ip_address=$(hostname -I | awk '{print $1}')
 echo -e "${GREEN}
+▓█████▄  ██▀███   ██▓███   ██████  ██████  ▒█████  ██▓███ 
+▒██▀ ██▌▓██ ▒ ██▒▓██░  ██▒▒██    ▒ ▒██    ▒ ▒██▒  ██▒▓██░  ██▒
+░██   █▌▓██ ░▄█ ▒▓██░ ██▓▒░ ▓██▄   ░ ▓██▄   ▒██░  ██▒▓██░ ██▓▒
+░▓█▄   ▌▒██▀▀█▄  ▒██▄█▓▒ ▒  ▒   ██▒  ▒   ██▒▒██   ██░▒██▄█▓▒ ▒
+░▒████▓ ░██▓ ▒██▒▒██▒ ░  ░▒██████▒▒▒██████▒▒░ ████▓▒░▒██▒ ░  ░
+ ▒▒▓  ▒ ░ ▒▓ ░▒▓░▒▓▒░ ░  ░▒ ▒▓▒ ▒ ░▒ ▒▓▒ ▒ ░░ ▒░▒░▒░ ▒▓▒░ ░  ░
+ ░ ▒  ▒   ░▒ ░ ▒░░▒ ░     ░ ░▒  ░ ░░ ░▒  ░ ░  ░ ▒ ▒░ ░▒ ░    
+ ░ ░  ░   ░░   ░ ░░       ░  ░  ░  ░  ░  ░  ░ ░ ░ ▒  ░░      
+   ░       ░                    ░        ░      ░ ░           
+ ░                                                            
+                                                                          
 ===========================================================
-SUKCES! Wszystkie komponenty zainstalowane:
-- SRT  $(srt-live-transmit --version | head -n1)
-- SRTLA $(/root/srtla/srtla -v)
-- Node.js $(node -v)
+INSTALACJA ZAKOŃCZONA SUKCESEM!
 
-Uruchomienie: 
-cd ${BELAUI_DIR} && node belaUI.js
+Adres IP systemu: ${YELLOW}${ip_address}${GREEN}
+Port interfejsu web: ${YELLOW}8080${GREEN}
+
+Uruchomienie:
+${YELLOW}cd ${BELAUI_DIR} && node belaUI.js${GREEN}
+
+Wersje komponentów:
+- SRT:    $(srt-live-transmit --version | head -n1)
+- SRTLA:  $(/root/srtla/srtla -v | awk '{print $2}')
+- Node.js: $(node -v)
 ===========================================================${NC}"
