@@ -97,7 +97,7 @@ fi
 git clone https://github.com/BELABOX/srtla.git
 cd srtla
 make
-chmod +x srtla
+
 
 # =====================================================================
 # Krok 6: Instalacja belacoder
