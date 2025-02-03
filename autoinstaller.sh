@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Auto-install script for BELABOX (z Node.js 21 via NVM)
+# Auto-install script for BELABOX (z SRTLA i net-tools)
 # Run as root: sudo ./belabox_installer.sh
 
 set -e
@@ -56,7 +56,7 @@ fi
 # =====================================================================
 step "Instalacja zależności"
 apt install -y \
-    build-essential git nano tcl libssl-dev \
+    net-tools build-essential git nano tcl libssl-dev \
     libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
     usb-modeswitch curl
 
@@ -71,6 +71,16 @@ cd srt
 make -j$(nproc)
 make install
 ldconfig
+
+# =====================================================================
+# Krok 4.5: Kompilacja SRTLA
+# =====================================================================
+step "Kompilacja SRTLA"
+cd /root
+git clone https://github.com/BELABOX/srtla.git
+cd srtla
+make
+chmod +x srtla
 
 # =====================================================================
 # Krok 5: Kompilacja belacoder
@@ -103,28 +113,25 @@ cat > package.json << 'EOF'
 EOF
 
 # =====================================================================
-# Krok 6.5: Instalacja NVM i Node.js 21
+# Krok 6.5: Instalacja Node.js 21
 # =====================================================================
 step "Instalacja Node.js 21 via NVM"
 
 # Instalacja NVM
 curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash
 
-# Ładowanie NVM do bieżącej sesji
+# Ładowanie NVM
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-# Instalacja Node.js
+# Node.js 21
 nvm install ${NODE_VERSION}
 nvm use ${NODE_VERSION}
 
-# Nadpisanie systemowego Node
-info "Node.js version: $(node -v)"
+# Aktualizacja systemowego Node
 ln -sf "$NVM_DIR/versions/node/v${NODE_VERSION}.*/bin/node" /usr/local/bin/node
 ln -sf "$NVM_DIR/versions/node/v${NODE_VERSION}.*/bin/npm" /usr/local/bin/npm
-
-# Instalacja zależności belaUI z nowym Node.js
 npm install
 
 # =====================================================================
@@ -148,11 +155,11 @@ step "Instalacja zakończona!"
 
 echo -e "${GREEN}
 ===========================================================
-SUKCES! BELABOX działa na Node.js $(node -v).
+SUKCES! Wszystkie komponenty zainstalowane:
+- SRT  $(srt-live-transmit --version | head -n1)
+- SRTLA $(/root/srtla/srtla -v)
+- Node.js $(node -v)
 
-Aby uruchomić:
-cd ${BELAUI_DIR}
-node belaUI.js
-
-Dostęp: http://<twoje-ip>:8080
+Uruchomienie: 
+cd ${BELAUI_DIR} && node belaUI.js
 ===========================================================${NC}"
