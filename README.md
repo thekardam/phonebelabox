@@ -99,26 +99,11 @@ To access SFTP as root:
 
 ---
 
-### **Step 6: Launch belaUI**  
-1. Start the interface:  
-   ```bash
-   sudo nodejs belaUI.js
-   ```  
-2. Access BELABOX via a web browser at: `http://<your_phone_IP>:8080`.  
 
----
 
-### **Summary**  
-- System: Ubuntu 20.04 LTS (verify with `lsb_release -a`).  
-- BELABOX: Runs via belacoder (use `./belacoder` in `~/belacoder`) and belaUI.  
-- SFTP: Access as root using the password you set.  
 
-**Troubleshooting Tips:**  
-- Ensure all dependencies are installed.  
-- Confirm Ubuntu version is **20.04 (Focal)**.  
-- If compilation errors occur, run `sudo ldconfig` and retry the steps.
 
-### **Step 7: Configure BELABOX Settings**  
+### **Step 6: Configure BELABOX Settings**  
 Create/modify the `setup.json` file for BELABOX hardware configuration:  
 
 1. Navigate to the `belaUI` directory:  
@@ -152,9 +137,23 @@ Create/modify the `setup.json` file for BELABOX hardware configuration:
 - **Paths:** Verify locations match your installation (e.g., `/root/belacoder/`).  
 - **Hardware:** Set `hw` to match your device (critical for compatibility).  
 
-**Final Command to Start BELABOX:**  
-```bash
-sudo nodejs belaUI.js
-```  
+
+### **Step 7: Launch belaUI**  
+1. Start the interface:  
+   ```bash
+   sudo nodejs belaUI.js
+   ```  
+2. Access BELABOX via a web browser at: `http://<your_phone_IP>:8080`.  
+
+---
 
 Now BELABOX will use your custom configuration! 🚀
+### **Summary**  
+- System: Ubuntu 20.04 LTS (verify with `lsb_release -a`).  
+- BELABOX: Runs via belacoder (use `./belacoder` in `~/belacoder`) and belaUI.  
+- SFTP: Access as root using the password you set.  
+
+**Troubleshooting Tips:**  
+- Ensure all dependencies are installed.  
+- Confirm Ubuntu version is **20.04 (Focal)**.  
+- If compilation errors occur, run `sudo ldconfig` and retry the steps.
