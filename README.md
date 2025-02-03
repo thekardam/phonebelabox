@@ -1,5 +1,5 @@
 ### **BELABOX Installation Tutorial on Android via Linux Deploy**  
-**Latest Version (2023-11-05)**  
+**Latest Version (2025-02-03)**  
 
 ---
 
