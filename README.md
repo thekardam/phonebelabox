@@ -1,176 +1,177 @@
-
-
----
-
 ### **BELABOX Installation Tutorial on Android via Linux Deploy**  
-**Prerequisites:**  
-- Rooted Android device.  
-- **Linux Deploy** app installed (configured for Ubuntu).  
-- Basic familiarity with Linux terminal.  
+**Latest Version (2023-11-05)**  
 
 ---
+
+## **Option 1: Auto-Installation (Recommended)**  
+Use the automated installation script:  
+
+1. Connect to your Ubuntu system via SSH and run:  
+   ```bash
+   sudo -i  # Log in as root
+   wget https://raw.githubusercontent.com/thekardam/phonebelabox/main/autoinstaller.sh
+   chmod +x autoinstaller.sh
+   ./autoinstaller.sh
+   ```  
+2. Follow the on-screen instructions.  
+3. After completion, verify component versions:  
+   ```bash
+   lsb_release -a  # Ubuntu version
+   /root/srtla/srtla -v  # SRTLA version
+   node -v  # Node.js version
+   ```  
+
+---
+
+## **Option 2: Manual Installation**  
 
 ### **Step 1: Upgrade Ubuntu to 20.04 LTS**  
-**Why?** Linux Deploy may default to an unsupported Ubuntu version. `libsrt-dev` (required for BELABOX) is only available in Ubuntu 20.04 ("Focal").  
-
-1. Open the terminal in Linux Deploy and run:  
+1. Edit package sources:  
    ```bash
    sudo nano /etc/apt/sources.list
    ```  
-2. Replace all instances of `jammy` (Ubuntu 22.04) with **`focal`** (Ubuntu 20.04).  
-3. Save changes (`Ctrl+O` → Enter) and exit (`Ctrl+X`).  
-4. Update the system:  
+2. Replace all instances of `jammy` → **`focal`**  
+3. Update the system:  
    ```bash
    sudo apt update && sudo apt upgrade -y
+   sudo reboot
    ```  
-   - **Important:** If prompted about SSH configuration, select **"keep the local version"**.  
-5. Reboot your phone.  
 
----
-
-### **Step 2: Configure SFTP (Optional)**  
-To access SFTP as root:  
-1. In the terminal:  
+### **Step 2: SFTP Configuration**  
+1. Set root password:  
    ```bash
-   su
-   passwd
-   ```  
-2. Set a password for the `root` account.  
-
----
-
-### **Step 3: Install Dependencies for belacoder**  
-1. Install required packages:  
-   ```bash
-   sudo apt-get install build-essential git libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libsrt-dev -y
+   sudo passwd root
    ```  
 
----
+### **Step 3: System Dependencies**  
+```bash
+sudo apt install -y \
+    net-tools build-essential git cmake libssl-dev \
+    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+    nodejs npm usb-modeswitch
+```  
 
-### **Step 4: Compile belacoder**  
-1. Navigate to the root directory and clone the repository:  
+### **Step 4: Compile SRT + SRTLA**  
+1. SRT:  
    ```bash
    cd ~
-   git clone https://github.com/BELABOX/belacoder.git
-   cd belacoder
-   make
+   git clone https://github.com/Haivision/srt.git
+   cd srt
+   ./configure --prefix=/usr/local
+   make -j$(nproc)
+   sudo make install
+   sudo ldconfig
    ```  
-   - **If compilation fails (missing SRT libraries):**  
-     ```bash
-     cd ~
-     git clone https://github.com/Haivision/srt.git  # Use the official SRT repo
-     cd srt
-     ./configure --prefix=/usr/local
-     make -j4
-     sudo make install
-     sudo ldconfig  # Refresh library paths
-     ```  
-     Return to belacoder and retry:  
-     ```bash
-     cd ~/belacoder
-     make
-     ```  
 
----
-
-### **Step 5: Install belaUI**  
-1. Install dependencies:  
+2. SRTLA:  
    ```bash
-   sudo apt-get install nano build-essential git tcl libssl-dev nodejs npm usb-modeswitch libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev -y
+   cd ~
+   git clone https://github.com/BELABOX/srtla.git
+   cd srtla
+   make
+   sudo cp srtla_* /usr/local/bin/
    ```  
-2. Clone the repository and switch to the correct branch:  
+
+### **Step 5: Install belacoder**  
+```bash
+cd ~
+git clone https://github.com/BELABOX/belacoder.git
+cd belacoder
+make
+sudo cp belacoder /usr/local/bin/
+```  
+
+### **Step 6: Configure belaUI**  
+1. Clone the repository:  
    ```bash
    cd ~
    git clone https://github.com/BELABOX/belaUI.git
    cd belaUI
    git checkout ws_nodejs
    ```  
-3. Create a `package.json` file with:  
-   ```bash
-   echo '{
+
+2. Create `package.json`:  
+   ```json
+   {
      "dependencies": {
        "serve-static": "^1.14.1",
        "finalhandler": "^1.1.2",
        "bcrypt": "^5.1.1",
        "ws": "^7.4.4"
      }
-   }' > package.json
+   }
    ```  
-4. Install Node.js modules:  
+
+3. Install Node.js dependencies:  
    ```bash
    npm install
    ```  
 
----
-
-### **Step 6: Configure BELABOX Settings**  
-1. Navigate to the `belaUI` directory:  
-   ```bash
-   cd ~/belaUI
-   ```  
-2. Create/edit the configuration file:  
-   ```bash
-   sudo nano setup.json
-   ```  
-3. Paste this configuration (adjust paths/hardware as needed):  
+4. Create `setup.json`:  
    ```json
    {
-     "hw": "rk3588",  # Change to your device's chipset (e.g., "raspberrypi", "odroid")
-     "belacoder_path": "/root/belacoder/",
-     "srtla_path": "/root/srtla/",  # Optional: Only if using SRTLA
+     "hw": "rk3588",
+     "belacoder_path": "/usr/local/bin/",
+     "srtla_path": "/usr/local/bin/",
      "bitrate_file": "/tmp/belacoder_br",
      "ips_file": "/tmp/srtla_ips"
    }
    ```  
-   - **Note:** Replace `rk3588` with your actual hardware (check device specs).  
-4. Save the file (`Ctrl+O` → Enter) and exit (`Ctrl+X`).  
+
+### **Step 7: Launch BELABOX**  
+```bash
+cd ~/belaUI
+node belaUI.js
+```  
+Access via browser: `http://<PHONE_IP>:8080`  
 
 ---
 
-### **Step 7: Launch belaUI**  
-1. Start the interface:  
+## **Troubleshooting**  
+1. **Compilation Errors**:  
    ```bash
-   sudo node belaUI.js  # Use "node" instead of "nodejs" if needed
+   sudo apt --fix-broken install
+   sudo rm -rf node_modules && npm install
    ```  
-2. Access BELABOX via a web browser at: `http://<your_phone_IP>:8080`.  
 
----
-
-### **Summary**  
-- **System:** Ubuntu 20.04 LTS (verify with `lsb_release -a`).  
-- **BELABOX Components:**  
-  - Encoder: `belacoder` (run via `./belacoder` in `~/belacoder`).  
-  - Web UI: `belaUI` (launched with `sudo node belaUI.js`).  
-- **SFTP Access:** Use root credentials set earlier.  
-
-**Troubleshooting Tips:**  
-1. **Dependency Issues:**  
+2. **Node.js Issues**:  
    ```bash
-   sudo apt --fix-broken install  # Resolve broken packages
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+   nvm install 21
+   nvm use 21
    ```  
-2. **Node.js Errors:**  
-   - Confirm Node.js version: `node -v` (recommended: v12+).  
-   - Reinstall modules: `rm -rf node_modules && npm install`.  
-3. **Hardware Mismatch:**  
-   - Edit `setup.json` to match your device’s chipset.  
-4. **Permissions:** Avoid running as root if possible. Create a dedicated user:  
+
+3. **Verification**:  
    ```bash
-   sudo adduser belabox
-   sudo usermod -aG sudo belabox
+   # Check versions
+   srt-live-transmit --version
+   /usr/local/bin/srtla_send -v
+   lsb_release -a
    ```  
 
 ---
 
-Now BELABOX is ready with your custom configuration! 🚀  
-**Need Help?**  
-- Check BELABOX documentation: [BELABOX GitHub](https://github.com/BELABOX).  
-- Visit forums for hardware-specific guidance (e.g., Rockchip, Raspberry Pi).  
+## **Important Notes**  
+- **Hardware Requirements**:  
+  - Min. 2 GB free storage  
+  - ARMv8 (aarch64) CPU  
+
+- **Security Best Practices**:  
+  ```bash
+  # Create a dedicated user
+  sudo adduser belabox
+  sudo usermod -aG sudo belabox
+  ```  
+
+- **Updates**:  
+  ```bash
+  cd ~/phonebelabox && git pull
+  ```  
 
 ---
 
-**Key Improvements:**  
-- Fixed SRT repository URL (now points to official Haivision repo).  
-- Added hardware compatibility notes for `setup.json`.  
-- Clarified Node.js command (`node` vs. `nodejs`).  
-- Added troubleshooting tips for dependency/node issues.  
-- Emphasized security by suggesting a non-root user.
+**All scripts and configurations available at**:  
+[https://github.com/thekardam/phonebelabox](https://github.com/thekardam/phonebelabox)  
+
+**Technical Support**:  
+[Issues · thekardam/phonebelabox](https://github.com/thekardam/phonebelabox/issues)
